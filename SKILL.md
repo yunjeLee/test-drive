@@ -4,6 +4,12 @@ description: Use when a change or a crash fix must be verified by actually drivi
   an Android app on a device or emulator instead of by unit tests, including
   reproducing a crash to find its cause. E2E 테스트 해줘, 실기기로 테스트,
   에뮬레이터로 확인, 크래시 재현해줘, 앱 직접 돌려서 검증, /test-drive 요청 시.
+hooks:
+  PreToolUse:
+    - matcher: "Bash"
+      hooks:
+        - type: command
+          command: "bash ~/.claude/skills/test-drive/hooks/guard-bash.sh"
 ---
 
 # test-drive
