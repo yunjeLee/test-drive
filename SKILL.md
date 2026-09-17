@@ -25,21 +25,37 @@ hooks:
 | 1 | 성격 판정 · 자료 요구 | 자료 제출 · 사용자 확인 |
 | 2 | 기기 · 빌드 변형 선택 | 사용자 선택 |
 | 3 | `scenario.md` 작성 | 사용자 검토 |
-| 4 | `run.sh` 생성 · 백그라운드 실행 | 사용자 확정 |
-| 5 | `result.md` 작성 | — |
+| 4 | 사전 탐색 · `run.sh` 생성 · 백그라운드 실행 | 사용자 확정 |
+| 5 | `result.md` · `failures.md` · `summary.md` 작성 | — |
 
 단계를 건너뛰지 않는다.
 
 ## 산출물 위치
 
 ```
-.test-drive/2026-09-15-splash-crash/
+.test-drive/DCL1538-온보딩/
 ├── scenario.md
 ├── run.sh
-└── runs/001-수정전-재현확인/{result.md, run.log, fail-01.png}
+├── summary.md
+├── failures.md
+└── runs/
+    └── 004_S02-S12_FAIL-1_중단@S10.3/
+        ├── result.md · run.log · run.sh
+        ├── fail/S08.4_check.png · S08.4_check.xml
+        └── evidence/
 ```
 
-작업 폴더는 `<날짜>-<작업요약>`, run 폴더는 `<3자리 순번>-<라벨>` 이다. 라벨이 없으면 순번만 쓴다.
+| 대상 | 규칙 | 만드는 것 |
+|---|---|---|
+| 작업 폴더 | `<일감번호>-<요약>`. 일감번호가 없으면 `<YYYY-MM-DD>-<요약>` | agent |
+| run 폴더 | 시작 시 `NNN_S<시작 2자리>-S<끝 2자리>` | `scripts/td-new-run.sh` |
+| run 폴더 접미사 | 종료 후 `_<TD_SUFFIX>` 를 붙인다 | `scripts/td-finalize.sh` |
+| `run.sh` 스냅샷 | 실행한 `run.sh` 를 run 폴더에 복사한다 | `td_require_env` |
+| 실패 캡처 | `fail/<SID>_<종류>.png` · `.xml`. SID 는 `S%02d.<스텝>`, 종류는 `step` · `check`. 같은 이름이 있으면 `_2`, `_3` 을 붙인다 | `td_capture_failure` |
+| 판정 근거 | `evidence/` | run.sh |
+| `result.md` | run 1회의 실행 직후 판정 | `td-finalize.sh` 초안 → agent |
+| `failures.md` | 작업 전체의 실패 목록 · 분류 | `td_capture_failure` 행 추가 → agent |
+| `summary.md` | 시나리오별 최종 판정 · run 목록 | agent |
 
 ## 1. 성격 판정 · 자료 요구
 
@@ -113,6 +129,7 @@ hooks:
 
 ```
 작업: <한 줄>
+일감: <번호 | 없음>
 성격: 기능 검증 | 크래시 재현
 근거 자료: <출처> — <받은 내용 요약>
 ```
@@ -145,7 +162,31 @@ AVD 를 고르면 `scripts/td-lib.sh` 의 `td_boot_wait` 로 띄우고 부팅 �
 
 빌드는 test-drive 가 한다. 시나리오가 두 빌드를 요구하면 둘 다 빌드한다.
 
+### 설치본 서명 비교
+
+빌드 후 기기의 설치본과 설치할 APK 의 서명을 비교한다.
+
+```bash
+TD_PKG=<applicationId> ANDROID_SERIAL=<serial> bash -c '
+  source ~/.claude/skills/test-drive/scripts/td-lib.sh
+  echo "설치본 $(td_installed_sig || echo 없음)"
+  echo "빌드   $(td_apk_sig "<apk 경로>")"'
+```
+
+| 결과 | 다음 |
+|---|---|
+| 설치본 `없음` | 비교하지 않는다 |
+| 두 값이 같다 | `install -r` 로 덮는다 |
+| 두 값이 다르다 | uninstall 이 필요하다. 로그인 · 앱 데이터가 삭제된다고 알리고 실행 전에 확인받는다 |
+| 설치본 값이 비었다 | base.apk pull 실패다. 서명 불명으로 보고하고 uninstall 여부를 묻는다 |
+
 ## 3. 시나리오 + 성공기준
+
+### 코드 조사
+
+`references/agent-prompts.md` 의 A1 템플릿을 채워 `Explore` 에이전트에 맡긴다. 결과 표로 스텝의 술어 · `기준:` · 사전 탐색 대상 화면을 정한다.
+
+### scenario.md 작성
 
 `references/scenario-format.md` 를 읽고 `scenario.md` 초안을 쓴다. 내용을 채팅에 보여준다. 사용자가 말로 고치면 파일에 반영하고 다시 보여준다.
 
@@ -182,6 +223,8 @@ AVD 를 고르면 `scripts/td-lib.sh` 의 `td_boot_wait` 로 띄우고 부팅 �
 
 `사전조건 → 스텝 → 복구`. 사전조건이 안 맞으면 그 시나리오를 `실행불가` 로 기록하고 다음 시나리오로 간다. 복구는 실패했을 때도 실행한다.
 
+앞 시나리오의 결과가 전제면 `의존: 시나리오 N` 을 쓴다. 의존 대상이 `PASS` · `건너뜀` 이 아니면 기기를 조작하지 않고 `실행불가` 로 기록한다.
+
 ### 성공기준은 부호를 담는다
 
 | 용도 | 기준 예 |
@@ -194,14 +237,33 @@ AVD 를 고르면 `scripts/td-lib.sh` 의 `td_boot_wait` 로 띄우고 부팅 �
 
 ## 4. 확정 및 실행
 
-라벨을 제안하고 확인받은 뒤 `runs/<순번>-<라벨>/` 을 만든다. `.test-drive/` 를 처음 만들 때 `.gitignore` 에 넣을지 한 번 묻는다.
+### 4a. 사전 탐색
 
-`scenario.md` 에서 `run.sh` 를 생성한다. 맨 위에서 `scripts/td-lib.sh` 를 source 한다.
-
-**백그라운드로 실행한다.** `[human]` 폴링은 상한이 없어 Bash 도구의 10분 제한에 걸린다.
+필수다. 클린 설치 → 실행 → 메인 도달까지 화면마다 `td-probe.sh` 로 확인한다.
 
 ```bash
-bash run.sh > runs/001-<라벨>/run.log 2>&1   # run_in_background: true
+ANDROID_SERIAL=<serial> ~/.claude/skills/test-drive/scripts/td-probe.sh
+```
+
+- 출력의 `TOP` · `IDS` · `TEXT` · `CLICK` 으로 다음 조작을 정한다.
+- 메인 앞을 가로막는 화면(권한 · 약관 · 업데이트 안내 · 온보딩)을 시나리오 1 스텝에 넣는다.
+- 술어는 `td-probe.sh "" "<술어>"` 로 기기 화면에서 매칭을 확인한 뒤 쓴다. 매칭이 없으면 `MATCH 없음` 과 exit 1 이다.
+- 클린 설치를 위한 uninstall · `pm clear` 는 사용자 확인 후 한다.
+- 바뀐 `scenario.md` 를 보여주고 확정받는다.
+
+### 4b. run 생성 · 실행
+
+`.test-drive/` 를 처음 만들 때 `.gitignore` 에 넣을지 한 번 묻는다.
+
+`scenario.md` 에서 `run.sh` 를 생성한다. 생성 규칙은 `references/scenario-format.md` 에 있다.
+
+run 폴더는 `td-new-run.sh` 로 만든다. 라벨을 묻지 않는다.
+
+**백그라운드로 실행한다.** `[human]` 폴링은 상한이 없어 Bash 도구의 10분 제한에 걸린다. 포그라운드 `bash run.sh` 는 hook 이 차단한다.
+
+```bash
+RUN=$(~/.claude/skills/test-drive/scripts/td-new-run.sh <작업폴더> <시작번호> <끝번호>)
+cd <작업폴더> && TD_RUN_DIR="$RUN" bash run.sh > "$RUN/run.log" 2>&1   # run_in_background: true
 ```
 
 로그를 tail 해 진행을 따라간다.
@@ -209,16 +271,31 @@ bash run.sh > runs/001-<라벨>/run.log 2>&1   # run_in_background: true
 - `👉 사람:` 이 뜨면 **채팅으로도 알린다.** 사용자가 터미널을 보고 있지 않을 수 있다.
 - `👉 사람(채팅):` 이 뜨면 사용자에게 묻고, 확인을 받은 뒤 `touch <run 폴더>/<마커>.ok` 로 스크립트를 재개시킨다.
 
+| 상황 | 할 일 |
+|---|---|
+| 중단 | `pkill -f "bash run.sh"`. 백그라운드 프로세스 · 포트 포워딩 정리는 trap 이 한다 |
+| 실행 중 수정 | 하지 않는다. bash 는 실행 중에 파일을 이어 읽는다. 고칠 일이 생기면 중단 후 고친다 |
+| 재실행 | `run.sh` 를 고친 뒤 `td-new-run.sh` 로 새 run 을 만든다. 이어서 할 시나리오 번호를 `TD_START_FROM` 으로 넘긴다 |
+
+```bash
+RUN=$(~/.claude/skills/test-drive/scripts/td-new-run.sh <작업폴더> <이어서 할 번호> <끝번호>)
+cd <작업폴더> && TD_START_FROM=<이어서 할 번호> TD_RUN_DIR="$RUN" bash run.sh > "$RUN/run.log" 2>&1   # run_in_background: true
+```
+
+`TD_START_FROM` 앞 시나리오는 `건너뜀` 이 되고 의존을 막지 않는다. 앞 시나리오가 만든 기기 상태가 남아 있을 때만 쓴다.
+
 ## 5. 결과
 
-`references/result-format.md` 를 읽고 `result.md` 를 쓴다.
+run 이 끝나면 순서대로 한다.
 
-실패는 두 가지로 가른다.
+1. `~/.claude/skills/test-drive/scripts/td-finalize.sh "$RUN"` 을 실행한다. 폴더 이름에 결과 접미사가 붙고 `result.md` 초안이 생긴다. 이후 출력된 새 경로를 쓴다.
+2. `references/result-format.md` 를 읽고 `result.md` 의 `<채움>` 을 채운다. 실행 직후 판정만 쓴다.
+3. `failures.md` 의 `미분류` 행에 분류 · 원인 · 조치를 채운다.
+4. `summary.md` 를 갱신한다.
 
-| 결함 | 판정 근거 | 다음 |
-|---|---|---|
-| 시나리오·스크립트 결함 | 좌표를 못 찾음 · 감지 조건 오탐 · 사전조건 미충족 · 빌드 변형 오선택 | 고쳐서 재실행한다 |
-| 앱 버그 | 스텝은 의도대로 실행됐고 앱 동작이 기준과 다르다 | 보고하고 멈춘다 |
+재판정은 `summary.md` · `failures.md` 에만 쓴다. 형식과 결함 분류표는 `references/summary-format.md` 에 있다.
+
+결함 분류가 `앱 버그` 면 보고하고 멈춘다. `스크립트 결함` · `기준 결함` · `사람 진행 오류` 면 고쳐서 재실행한다.
 
 ## 하지 않는 것
 
@@ -228,5 +305,5 @@ bash run.sh > runs/001-<라벨>/run.log 2>&1   # run_in_background: true
 - 기대 동작을 추측으로 지어내지 않는다. 자료가 없으면 1단계에서 멈춘다.
 - 감지 조건 없는 `[human]` 을 실행하지 않는다.
 - `[auto]` 로 가능한 조작을 `[human]` 으로 빼지 않는다.
-- 하나가 실패해도 남은 시나리오를 건너뛰지 않는다.
+- 의존이 없는 시나리오는 하나가 실패해도 건너뛰지 않는다.
 - `run.sh` 를 포그라운드로 실행하지 않는다.
