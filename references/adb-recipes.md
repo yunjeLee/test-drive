@@ -17,10 +17,12 @@
 | 목적 | 명령 |
 |---|---|
 | 설치 | `td_install <apk>` · debug 는 `td_install <apk> -t` |
-| 삭제 | `td_adb uninstall $TD_PKG` — hook 이 확인을 묻는다. 로그인이 삭제된다 |
+| 삭제 | `td_adb uninstall $TD_PKG` — 로그인이 삭제된다. Bash 도구로 직접 실행하면 hook 이 확인을 묻는다 |
 | 실행 | `td_launch` |
 | 강제 종료 | `td_adb shell am force-stop $TD_PKG` |
-| 데이터 삭제 | `td_adb shell pm clear $TD_PKG` — hook 이 확인을 묻는다 |
+| 데이터 삭제 | `td_adb shell pm clear $TD_PKG` — Bash 도구로 직접 실행하면 hook 이 확인을 묻는다 |
+
+hook 은 Bash 도구 호출만 검사한다. `run.sh` 안의 uninstall · `pm clear` 는 확인 없이 실행된다. 스텝이나 복구에 넣으려면 3단계 `scenario.md` 검토에서 사용자 확인을 받는다.
 | 버전 확인 | `td_adb shell dumpsys package $TD_PKG \| grep versionName` |
 | 서명 확인 | `td_apk_sig <apk>` — 두 APK 가 서로 덮이는지 미리 본다 |
 | 설치본 서명 | `td_installed_sig` — 기기의 base.apk 를 pull 해 서명을 출력한다. 미설치면 1 |
@@ -111,4 +113,5 @@
 - debug APK 는 `-t` 없이 설치되지 않는 경우가 있다(`testOnly`).
 - R8 이 바꾼 클래스명은 `mapping.txt` 로 확인한다. 난독화가 얽힌 크래시는 release 에서만 재현된다.
 - `dumpsys activity activities` 의 `ActivityRecord` 줄에는 닫힌 activity 이력이 섞인다. 실제 스택은 `* Hist` 줄만 본다.
+- 잠금 화면에서는 `topResumedActivity` 줄이 없어 `td_top` · `td-probe.sh` 의 `TOP` 이 빈 값이다. 실행 전에 잠금을 해제한다.
 - 실행 중인 `run.sh` 를 수정하지 않는다. bash 는 파일을 이어 읽으므로 엉뚱한 줄이 실행된다.

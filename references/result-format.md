@@ -41,7 +41,7 @@ PASS 0 / FAIL 1 / 중단 0 / 실행불가 1 / 건너뜀 0
 
 | 칸 | 채우는 것 | 값 |
 |---|---|---|
-| 제목 `<작업 요약>` | agent | `scenario.md` 첫 줄 |
+| 제목 | agent | `# <scenario.md 첫 줄에서 "# " 를 뺀 값> — <run 폴더 이름>`. `td-finalize.sh` 가 `— <run 폴더 이름>` 까지 채운다 |
 | 시각 · 로그 | `td-finalize.sh` | 첫 · 마지막 로그 시각. 날짜는 `run.log` 수정일이다 |
 | 기기 · 빌드 · 시나리오 · 근거 자료 | agent | `scenario.md` 의 `## 대상` |
 | 판정 표 | `td-finalize.sh` | `td_summary` 상태 · 시나리오별 `PASS  ` / `FAIL  ` 원문 줄 · 사유 |
@@ -57,6 +57,7 @@ PASS 0 / FAIL 1 / 중단 0 / 실행불가 1 / 건너뜀 0
 - `연쇄` 는 원인 칸에 원 실패 SID 를 쓴다.
 - `미결` 은 원인 칸에 `미결: <질문> / 답할 사람: <누구>` 로 쓴다.
 - 캡처는 `fail/<SID>_<종류>.png` · `.xml` 이다. 종류는 `step` · `check` 다.
+- `failures.md` 의 `human` 행은 캡처가 없다. `실패 상세` 절도 생기지 않으므로 agent 가 `### <SID>_human` 절을 추가하고 캡처 칸에 `-` 를 쓴다.
 
 ## 규칙
 

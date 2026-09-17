@@ -6,7 +6,7 @@
 
 ```
 # <작업 요약>
-## 대상          — 기기·패키지·빌드·성격·근거 자료
+## 대상          — 기기·패키지·빌드·APK 변수·logcat 인자·성격·근거 자료
 ## 빌드          — APK 를 만드는 명령 (없으면 생략)
 ## 시나리오 N    — 의존 / 사전조건 / 스텝 / 복구
 ```
@@ -37,9 +37,11 @@
 | `[human:chat]` | `감지불가:` | 기기 상태로 판정할 수 없는 이유 한 줄 |
 | `[check]` | `기준:` | 0 종료면 PASS, 아니면 FAIL |
 
-`[human:chat]` 은 `td_human_chat "<설명>" <마커이름>` 으로 생성된다. 마커 이름은 스텝마다 다르게 붙인다.
+`[human:chat]` 은 `td_human_chat "<설명>" s<N>.<M>` 으로 생성된다. 마커 이름은 스텝 번호 `s<N>.<M>` 이다. 재개 파일은 `$TD_RUN_DIR/s<N>.<M>.ok` 다.
 
 스텝 번호는 시나리오 안에서 1 부터 매긴다. `run.sh` 에서는 `<시나리오>.<스텝>` 으로 쓴다. 시나리오 8 의 스텝 4 는 `8.4` 이고 실패 캡처 SID 는 `S08.4` 다.
+
+`[human]` · `[human:chat]` 도 번호를 차지한다. run.sh 의 `td_human` 줄에는 번호가 없으므로 `td_step` 번호가 건너뛴다(1.1 → 1.3). `failures.md` 의 `human` 행 SID 는 그 스텝 번호다.
 
 ## 성공기준
 
@@ -67,6 +69,8 @@
 | 패키지 | `com.example.app` |
 | 빌드 | 구버전 = debug · 신버전 = release(minify) |
 | 성격 | 크래시 재현 |
+| APK 변수 | `OLD_APK=/abs/app-debug.apk` · `NEW_APK=/abs/app-release.apk` |
+| logcat 인자 | `-s ActivityManager:I` |
 | 근거 자료 | Crashlytics `a1b2c3d4` 스택 — 사용자 제출 2026-09-15 |
 
 release 가 필수다. debug 는 난독화가 없어 `RemoteMessage` 가 rename 되지 않는다.
@@ -92,7 +96,7 @@ grep -E "^com\.google\.firebase\.messaging\.RemoteMessage " app/build/outputs/ma
 6. `[auto]` 뒤로가기로 설정을 닫는다 — 명령: `for i in 1 2 3 4 5; do td_top | grep -q com.android.settings || break; td_adb shell input keyevent KEYCODE_BACK; sleep 2; done`
 7. `[auto]` 크래시 버퍼를 비우고 recents 카드를 탭한다 — 명령: `td_crash_clear && td_adb shell input keyevent KEYCODE_APP_SWITCH && sleep 5 && td_tap "g('resource-id').endswith('taskView') and g('content-desc')=='MyApp'" "recents 카드" && sleep 12`
 8. `[check]` 크래시가 발생한다 — 기준: `[ "$(td_crash_count)" -ge 1 ]`
-9. `[check]` 스택이 SplashActivity 를 가리킨다 — 기준: `td_adb logcat -d -b crash | grep -q "SplashActivity"`
+9. `[check]` 스택이 SplashActivity 를 가리킨다 — 기준: `td_crash_dump s1-crash && grep -q "SplashActivity" "$TD_RUN_DIR/evidence/s1-crash.txt"`
 
 ### 복구
 - 구버전 재설치 — `td_adb shell input keyevent KEYCODE_HOME; td_install "$OLD_APK" -t`
@@ -118,6 +122,11 @@ grep -E "^com\.google\.firebase\.messaging\.RemoteMessage " app/build/outputs/ma
 - 복구는 앞 시나리오의 흔적을 지운다. 실패로 중단됐을 때도 실행된다.
 - 판정 근거 파일(logcat · 응답 · dump · 크래시 원문)은 `$TD_RUN_DIR/evidence/` 에 쓴다. `td_crash_dump` 도 여기에 쓴다.
 - logcat 은 `td_logcat_start` 로 한 번 켜고 `td_mark` · `td_since` 로 스텝 구간을 자른다.
+- `td_logcat_start` 인자는 `## 대상` 의 `logcat 인자` 행에서 가져온다. 값은 코드 조사(A1) 결과 2절의 로그 태그로 채운다.
+- 기능 검증 시나리오와 수정 검증 시나리오(크래시가 고쳐졌는지 보는 시나리오)는 `FATAL 0건` 을 판정한다. 크래시 재현 시나리오는 제외한다. 첫 `[auto]` 스텝 명령 맨 앞에 `td_crash_clear &&` 를 두고, 마지막 스텝을 `[check]` 크래시가 없다 — 기준: `[ "$(td_crash_count)" -eq 0 ]` 으로 둔다. 이 판정이 없으면 `run.sh` 를 생성하지 않는다.
+- 기준에 `$m` 을 쓰면 같은 시나리오의 앞 스텝 명령에 `m=$(td_mark <파일>)` 가 있어야 한다. 없으면 `run.sh` 를 생성하지 않고 `scenario.md` 를 고친다.
+- 스텝이 참조하는 변수(`$OLD_APK` 등)는 `## 대상` 의 `APK 변수` 행에 선언한다.
+- 패키지명을 적지 않고 `$TD_PKG` 를 쓴다. 설치 여부는 `td_adb shell pm list packages | tr -d '\r' | grep -qx "package:$TD_PKG"` 로 본다.
 
 ## run.sh 생성 규칙
 
@@ -149,9 +158,8 @@ s1() {
   td_step 1.5 "설정이 떠 있는 상태에서 신버전 설치" 'td_install "$NEW_APK" && sleep 5' || return 1
   td_step 1.6 "뒤로가기로 설정을 닫는다" 'for i in 1 2 3 4 5; do td_top | grep -q com.android.settings || break; td_adb shell input keyevent KEYCODE_BACK; sleep 2; done' || return 1
   td_step 1.7 "크래시 버퍼를 비우고 recents 카드를 탭한다" 'td_crash_clear && td_adb shell input keyevent KEYCODE_APP_SWITCH && sleep 5 && tap_recents_card && sleep 12' || return 1
-  td_crash_dump s1-crash
   td_check 1.8 "크래시가 발생한다" '[ "$(td_crash_count)" -ge 1 ]'
-  td_check 1.9 "스택이 SplashActivity 를 가리킨다" 'grep -q "SplashActivity" "$TD_RUN_DIR/evidence/s1-crash.txt"'
+  td_check 1.9 "스택이 SplashActivity 를 가리킨다" 'td_crash_dump s1-crash && grep -q "SplashActivity" "$TD_RUN_DIR/evidence/s1-crash.txt"'
 }
 r1() {
   td_adb shell input keyevent KEYCODE_HOME
@@ -176,7 +184,7 @@ td_summary
 | `[human]` | `td_human "<설명>" '<감지>'`. 번호 · `\|\| return` 을 붙이지 않는다 |
 | `[human:chat]` | `td_human_chat "<설명>" <마커>`. 번호 · `\|\| return` 을 붙이지 않는다 |
 | `[check]` | `td_check <N.M> "<설명>" '<기준>'`. FAIL 이어도 다음 판정을 계속한다 |
-| 복구 | 함수 `rN`. 복구가 없으면 `td_scenario` 넷째 인자에 `-` |
+| 복구 | 함수 `rN`. `### 복구` 의 줄 하나 = `rN` 안의 명령 한 줄. 복구 절이 `- 없음` 이면 `rN` 을 만들지 않고 `td_scenario` 넷째 인자에 `-` |
 | `의존: 시나리오 A, B` | `td_scenario` 다섯째 인자부터 `A B` |
 
 - 본문 반환값: `0` = 끝까지 실행 · `1` = 스텝 실패(`중단`) · `2` = 사전조건 미충족(`실행불가`).
@@ -185,4 +193,6 @@ td_summary
 - 본문과 복구에서 `exit` 를 쓰지 않는다. 남은 시나리오와 `td_summary` 가 실행되지 않는다.
 - 명령에 작은따옴표가 들어가면 함수로 빼고 함수 이름을 넘긴다. 작은따옴표 문자열 안에 작은따옴표를 쓰면 문자열이 깨진다.
 - `TD_RUN_DIR` · `TD_START_FROM` 은 파일에 쓰지 않는다. 실행할 때 환경변수로 넘긴다.
+- `## 대상` 의 `APK 변수` 는 `td_require_env` 아래에 그대로 선언한다.
+- `td_step` · `td_check` · `td_require` 는 명령을 현재 셸에서 eval 한다. run.sh 의 변수 · 함수는 export 하지 않아도 보인다. 스텝 명령에서 대입한 변수(`m`)는 뒤 스텝에서 보인다.
 - `td_step` · `td_check` 는 실패 시 `fail/` 에 캡처하고 `failures.md` 에 행을 추가한다. 따로 호출하지 않는다.

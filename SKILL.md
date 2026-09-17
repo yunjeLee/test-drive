@@ -196,7 +196,7 @@ TD_PKG=<applicationId> ANDROID_SERIAL=<serial> bash -c '
 |---|---|
 | `[auto]` | adb 명령 또는 uiautomator 좌표 탭 |
 | `[human]` | `👉 사람:` 을 출력하고 감지 조건을 상한 없이 폴링한다 |
-| `[human:chat]` | `[human]` 의 폴백. 감지 조건을 만들 수 없을 때만 쓴다 |
+| `[human:chat]` | `[human]` 의 폴백. 감지 조건을 만들 수 없을 때만 쓴다. 판정에 쓰지 않는다 |
 | `[check]` | 성공기준을 판정한다 |
 
 ### `[auto]` 가 최우선이다
@@ -233,6 +233,8 @@ TD_PKG=<applicationId> ANDROID_SERIAL=<serial> bash -c '
 | 크래시 재현 | `FATAL ≥1건` · 스택에 `SplashActivity.kt:48` |
 | 수정 검증 | `FATAL 0건` |
 
+기능 검증 · 수정 검증 시나리오는 `FATAL 0건` 판정을 반드시 둔다. 형식은 `references/scenario-format.md` 의 규칙을 따른다.
+
 판정 수단은 `references/adb-recipes.md` 에 있다.
 
 ## 4. 확정 및 실행
@@ -246,7 +248,7 @@ ANDROID_SERIAL=<serial> ~/.claude/skills/test-drive/scripts/td-probe.sh
 ```
 
 - 출력의 `TOP` · `IDS` · `TEXT` · `CLICK` 으로 다음 조작을 정한다.
-- 메인 앞을 가로막는 화면(권한 · 약관 · 업데이트 안내 · 온보딩)을 시나리오 1 스텝에 넣는다.
+- 메인 앞을 가로막는 화면(권한 · 약관 · 업데이트 안내 · 온보딩) 중 검증 대상이 아닌 것을 시나리오 1 스텝에 넣는다.
 - 술어는 `td-probe.sh "" "<술어>"` 로 기기 화면에서 매칭을 확인한 뒤 쓴다. 매칭이 없으면 `MATCH 없음` 과 exit 1 이다.
 - 클린 설치를 위한 uninstall · `pm clear` 는 사용자 확인 후 한다.
 - 바뀐 `scenario.md` 를 보여주고 확정받는다.
@@ -257,7 +259,7 @@ ANDROID_SERIAL=<serial> ~/.claude/skills/test-drive/scripts/td-probe.sh
 
 `scenario.md` 에서 `run.sh` 를 생성한다. 생성 규칙은 `references/scenario-format.md` 에 있다.
 
-run 폴더는 `td-new-run.sh` 로 만든다. 라벨을 묻지 않는다.
+run 폴더는 `td-new-run.sh` 로 만든다. 라벨을 묻지 않는다. 출력은 run 폴더의 절대경로 한 줄이다. Bash 도구는 셸 변수를 유지하지 않으므로 이후 호출에는 이 경로를 그대로 적는다.
 
 **백그라운드로 실행한다.** `[human]` 폴링은 상한이 없어 Bash 도구의 10분 제한에 걸린다. 포그라운드 `bash run.sh` 는 hook 이 차단한다.
 
@@ -273,29 +275,29 @@ cd <작업폴더> && TD_RUN_DIR="$RUN" bash run.sh > "$RUN/run.log" 2>&1   # run
 
 | 상황 | 할 일 |
 |---|---|
-| 중단 | `pkill -f "bash run.sh"`. 백그라운드 프로세스 · 포트 포워딩 정리는 trap 이 한다 |
+| 중단 | `pkill -f "bash run.sh"`. 백그라운드 프로세스 · 포트 포워딩 정리는 trap 이 한다. 이 명령은 모든 run 을 멈추므로 run 은 한 번에 하나만 실행한다 |
 | 실행 중 수정 | 하지 않는다. bash 는 실행 중에 파일을 이어 읽는다. 고칠 일이 생기면 중단 후 고친다 |
-| 재실행 | `run.sh` 를 고친 뒤 `td-new-run.sh` 로 새 run 을 만든다. 이어서 할 시나리오 번호를 `TD_START_FROM` 으로 넘긴다 |
+| 재실행 | `scenario.md` 를 고치고 `run.sh` 를 다시 생성한 뒤 `td-new-run.sh` 로 새 run 을 만든다. 이어서 할 시나리오 번호를 `TD_START_FROM` 으로 넘긴다 |
 
 ```bash
 RUN=$(~/.claude/skills/test-drive/scripts/td-new-run.sh <작업폴더> <이어서 할 번호> <끝번호>)
 cd <작업폴더> && TD_START_FROM=<이어서 할 번호> TD_RUN_DIR="$RUN" bash run.sh > "$RUN/run.log" 2>&1   # run_in_background: true
 ```
 
-`TD_START_FROM` 앞 시나리오는 `건너뜀` 이 되고 의존을 막지 않는다. 앞 시나리오가 만든 기기 상태가 남아 있을 때만 쓴다.
+`TD_START_FROM` 앞 시나리오는 `건너뜀` 이 되고 의존을 막지 않는다. 앞 시나리오가 만든 기기 상태가 남아 있을 때만 쓴다. 쓰기 전에 `td-probe.sh` 로 기기 상태를 확인하고 사용자 확인을 받는다.
 
 ## 5. 결과
 
 run 이 끝나면 순서대로 한다.
 
-1. `~/.claude/skills/test-drive/scripts/td-finalize.sh "$RUN"` 을 실행한다. 폴더 이름에 결과 접미사가 붙고 `result.md` 초안이 생긴다. 이후 출력된 새 경로를 쓴다.
+1. `~/.claude/skills/test-drive/scripts/td-finalize.sh <run 폴더 절대경로>` 를 실행한다. 폴더 이름에 결과 접미사가 붙고 `result.md` 초안이 생긴다. 이후 출력된 새 경로를 쓴다.
 2. `references/result-format.md` 를 읽고 `result.md` 의 `<채움>` 을 채운다. 실행 직후 판정만 쓴다.
 3. `failures.md` 의 `미분류` 행에 분류 · 원인 · 조치를 채운다.
 4. `summary.md` 를 갱신한다.
 
 재판정은 `summary.md` · `failures.md` 에만 쓴다. 형식과 결함 분류표는 `references/summary-format.md` 에 있다.
 
-결함 분류가 `앱 버그` 면 보고하고 멈춘다. `스크립트 결함` · `기준 결함` · `사람 진행 오류` 면 고쳐서 재실행한다.
+결함 분류가 `앱 버그` 면 보고하고 멈춘다. `스크립트 결함` · `기준 결함` · `사람 진행 오류` 면 `scenario.md` 를 고치고 `run.sh` 를 다시 생성해 재실행한다.
 
 ## 하지 않는 것
 
