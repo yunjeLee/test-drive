@@ -1,0 +1,33 @@
+#!/bin/bash
+# 테스트용 adb. 받은 인자를 $FAKE_ADB_LOG 에 한 줄씩 쓰고 $FAKE_DIR 의 파일로 응답한다.
+#   ui.xml      uiautomator dump 결과. 없으면 pull 이 실패한다
+#   top.txt     dumpsys activity 결과
+#   logcat.txt  logcat -d 결과
+
+echo "$*" >> "${FAKE_ADB_LOG:-/dev/null}"
+
+[ "${1:-}" = "-s" ] && shift 2
+
+case "${1:-}" in
+  pull)
+    case "$2" in
+      *.xml) [ -f "$FAKE_DIR/ui.xml" ] || exit 1; cp "$FAKE_DIR/ui.xml" "$3" ;;
+      *)     printf 'fake' > "$3" ;;
+    esac
+    ;;
+  install)
+    echo "Success"
+    ;;
+  logcat)
+    case " $* " in
+      *" -d "*)       cat "$FAKE_DIR/logcat.txt" 2>/dev/null ;;
+      *" -v time "*)  while :; do sleep 1; done ;;
+    esac
+    ;;
+  shell)
+    case "${2:-}" in
+      dumpsys) cat "$FAKE_DIR/top.txt" 2>/dev/null ;;
+    esac
+    ;;
+esac
+exit 0
