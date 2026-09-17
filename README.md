@@ -56,8 +56,8 @@ ln -s "$(pwd)" ~/.claude/skills/test-drive
 | `references/scenario-format.md` | `scenario.md` 문법 · 템플릿 · `run.sh` 생성 규칙 |
 | `references/result-format.md` | `result.md` 템플릿 |
 | `references/summary-format.md` | `summary.md` · `failures.md` 형식 · 결함 분류표 |
-| `references/agent-prompts.md` | 서브에이전트 프롬프트 템플릿 (A1 코드 조사) |
 | `references/adb-recipes.md` | 기기 · 조작 · 판정 레시피 · 함정 |
+| `agents/code-research.md` | 서브에이전트 프롬프트 템플릿 (A1 코드 조사) |
 | `scripts/td-lib.sh` | `run.sh` 가 source 하는 공용 함수 |
 | `scripts/td-new-run.sh` | run 폴더 생성 |
 | `scripts/td-probe.sh` | 화면 요약 · 술어 매칭 확인 |

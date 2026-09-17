@@ -184,7 +184,7 @@ TD_PKG=<applicationId> ANDROID_SERIAL=<serial> bash -c '
 
 ### 코드 조사
 
-`references/agent-prompts.md` 의 A1 템플릿을 채워 `Explore` 에이전트에 맡긴다. 결과 표로 스텝의 술어 · `기준:` · 사전 탐색 대상 화면을 정한다.
+`agents/code-research.md` 의 A1 템플릿을 채워 `Explore` 에이전트에 맡긴다. 결과 표로 스텝의 술어 · `기준:` · 사전 탐색 대상 화면을 정한다.
 
 ### scenario.md 작성
 
