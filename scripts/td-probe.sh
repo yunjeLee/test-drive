@@ -9,7 +9,7 @@ set -u
 
 xml=${1:-}
 pred=${2:-}
-tmp=$(mktemp -d)
+tmp=$(mktemp -d "${TMPDIR:-/tmp}/td.XXXXXX")  # macOS mktemp -d 는 TMPDIR 을 무시한다
 trap 'rm -r "$tmp" 2>/dev/null' EXIT
 
 if [ -z "$xml" ]; then

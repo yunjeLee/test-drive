@@ -259,7 +259,22 @@ t11() {
   expect "T11 tool_name=Edit → 출력 없음" '[ "$(hook_decision Edit "bash run.sh" false)" = none ]'
 }
 
-for t in t1 t2 t3 t4 t5 t6 t7 t8 t9 t10 t11; do
+# ── T12 임시 폴더는 $TMPDIR 아래 ─────────────────────
+# macOS mktemp -d 는 TMPDIR 을 무시한다. Claude sandbox 는 TMPDIR 밖 쓰기를 막는다.
+t12() {
+  mkdir -p "$T/tmp"
+  write_ui "$FAKE_DIR/ui.xml"
+  write_run <<'EOF'
+td_ui_find 'g("text") == "확인"'
+EOF
+  run_sh 10 TMPDIR="$T/tmp"
+  expect "T12 td-lib 임시 폴더는 TMPDIR 아래" 'grep "^pull /sdcard/td-ui.xml " "$FAKE_ADB_LOG" | grep -qF " $T/tmp/"'
+  : > "$FAKE_ADB_LOG"
+  TMPDIR="$T/tmp" ADB="$FAKE_ADB" "$REPO/scripts/td-probe.sh" >/dev/null 2>&1
+  expect "T12 td-probe 임시 폴더는 TMPDIR 아래" 'grep "^pull /sdcard/td-ui.xml " "$FAKE_ADB_LOG" | grep -qF " $T/tmp/"'
+}
+
+for t in t1 t2 t3 t4 t5 t6 t7 t8 t9 t10 t11 t12; do
   setup
   "$t"
   cleanup
