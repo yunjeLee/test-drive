@@ -30,6 +30,23 @@ hooks:
 
 단계를 건너뛰지 않는다.
 
+## Herdr 역할로 실행될 때
+
+`printenv HDO_WORKER_ROLE` 이 `scenario_test` 이거나, 받은 지시에 `test_bridge_instructions` 가 있으면 Herdr 역할이다. 이때는 아래 규칙이 각 단계보다 우선한다. 규칙에 없는 것은 받은 지시의 `test_bridge_instructions` 를 따른다.
+
+| 단계 | Herdr 역할에서 |
+|---|---|
+| 질문 · 확인 · 선택 | 사용자에게 직접 묻지 않는다. 받은 지시의 `HDO_RESULT` 형식으로 `verdict=question` 을 내고 멈춘다. `HDO_USER_ANSWER` 가 오면 이어간다 |
+| 산출물 위치 | `Role writable roots` 중 `.test-drive` 경로 아래에 작업 폴더를 만든다. `.gitignore` 를 묻지 않는다 |
+| 1단계 | 받은 지시의 `request` · `criteria` · `approved_documents` 가 근거 자료다 |
+| 2단계 | 빌드하지 않는다. Coding 결과의 APK 절대경로를 쓴다. 에뮬레이터 · adb 서버를 띄우지 않는다. APK 가 없거나 adb 출력에 `daemon not running` 이 나오면(이때는 `"$ADB" kill-server` 먼저) `verdict=blocked` · `cause=environment` 로 보고한다 |
+| 앱 삭제 · 초기화 | 직접 실행하지 않는다. 사전 탐색에서 필요하면 Main 에 질문하고 사용자가 sandbox 밖에서 한다. `scenario.md` 에서는 uninstall 을 `[human]`(감지: `! td_adb shell pm path "$TD_PKG" \| grep -q .`)으로, `pm clear` 를 `[human:chat]`(감지불가: 앱 데이터 초기화는 기기 상태로 판정할 수 없다)으로 쓴다 |
+| 3단계 코드 조사 | Agent 도구를 쓸 수 없다. A1 템플릿 내용을 직접 조사한다 |
+| 파일 작성 | `run.sh` · `pm clear` · `uninstall` 글자가 든 Bash 명령은 hook 이 막는다. `scenario.md` · `run.sh` 는 Write 도구로 쓰고 Read 도구로 본다. `td-new-run.sh` 가 막히면 `run_in_background: true` 로 다시 실행한다 |
+| run 준비 | `run.sh` 를 Write 도구로 run 폴더 안에도 쓴다. run 폴더 · scenario.md · APK · 기기 · 시나리오 ID 를 Main 에 넘기고 run 승인을 기다린다 |
+| 실행 | 승인 뒤 한 번만: `TD_RUN_DIR=<run> /bin/bash <run>/run.sh > <run>/run.log 2>&1` (`run_in_background: true`). `TD_START_FROM` 을 쓰지 않는다. `.ok` 마커를 만들지 않는다. 중단은 Main 이 한다 |
+| 5단계 | 결과 파일을 채우고 보고한 뒤 멈춘다. `scenario.md` · `run.sh` 를 고치지 않고 재실행하지 않는다 |
+
 ## 산출물 위치
 
 ```
@@ -58,6 +75,8 @@ hooks:
 | `summary.md` | 시나리오별 최종 판정 · run 목록 | agent |
 
 ## 1. 성격 판정 · 자료 요구
+
+Herdr 역할이면 → 「Herdr 역할로 실행될 때」
 
 두 칸으로 나뉜다. **1a 는 성격만 정한다. 시나리오의 근거는 1b 에서 받는다.**
 
@@ -136,6 +155,8 @@ hooks:
 
 ## 2. 기기 · 빌드 변형 선택
 
+Herdr 역할이면 → 「Herdr 역할로 실행될 때」
+
 연결 기기와 AVD 를 한 목록으로 보여주고 고르게 한다.
 
 ```bash
@@ -181,6 +202,8 @@ TD_PKG=<applicationId> ANDROID_SERIAL=<serial> bash -c '
 | 설치본 값이 비었다 | base.apk pull 실패다. 서명 불명으로 보고하고 uninstall 여부를 묻는다 |
 
 ## 3. 시나리오 + 성공기준
+
+Herdr 역할이면 → 「Herdr 역할로 실행될 때」
 
 ### 코드 조사
 
@@ -239,6 +262,8 @@ TD_PKG=<applicationId> ANDROID_SERIAL=<serial> bash -c '
 
 ## 4. 확정 및 실행
 
+Herdr 역할이면 → 「Herdr 역할로 실행될 때」
+
 ### 4a. 사전 탐색
 
 필수다. 클린 설치 → 실행 → 메인 도달까지 화면마다 `td-probe.sh` 로 확인한다.
@@ -287,6 +312,8 @@ cd <작업폴더> && TD_START_FROM=<이어서 할 번호> TD_RUN_DIR="$RUN" bash
 `TD_START_FROM` 앞 시나리오는 `건너뜀` 이 되고 의존을 막지 않는다. 앞 시나리오가 만든 기기 상태가 남아 있을 때만 쓴다. 쓰기 전에 `td-probe.sh` 로 기기 상태를 확인하고 사용자 확인을 받는다.
 
 ## 5. 결과
+
+Herdr 역할이면 → 「Herdr 역할로 실행될 때」
 
 run 이 끝나면 순서대로 한다.
 
